@@ -2,17 +2,26 @@ from pdfs import *
 
 from numpy import errstate
 from numpy.testing import Tester
+
+
 class NoseWrapper(Tester):
-    '''
+    """
     This is simply a monkey patch for numpy.testing.Tester.
 
     It allows extra_argv to be changed from its default None to ['--exe'] so
     that the tests can be run the same across platforms.  It also takes kwargs
     that are passed to numpy.errstate to suppress floating point warnings.
-    '''
-    def test(self, label='fast', verbose=1, extra_argv=['--exe'], doctests=False,
-            coverage=False, **kwargs):
-        ''' Run tests for module using nose
+    """
+    def test(
+            self,
+            label='fast',
+            verbose=1,
+            extra_argv=None,
+            doctests=False,
+            coverage=False,
+            **kwargs):
+        """
+        Run tests for module using nose
 
         %(test_header)s
         doctests : boolean
@@ -23,7 +32,11 @@ class NoseWrapper(Tester):
              http://nedbatchelder.com/code/modules/coverage.html)
         kwargs
             Passed to numpy.errstate.  See its documentation for details.
-        '''
+        """
+
+        # avoid setting extra_argv to mutable list as the default value
+        if extra_argv is None:
+            extra_argv = ['--exe']
 
         # cap verbosity at 3 because nose becomes *very* verbose beyond that
         verbose = min(verbose, 3)
@@ -45,10 +58,11 @@ class NoseWrapper(Tester):
         argv, plugins = self.prepare_test_args(label, verbose, extra_argv,
                                                doctests, coverage)
         from numpy.testing.noseclasses import NumpyTestProgram
-        from warnings import simplefilter #, catch_warnings
+        from warnings import simplefilter
         with errstate(**kwargs):
-##            with catch_warnings():
             simplefilter('ignore', category=DeprecationWarning)
             t = NumpyTestProgram(argv=argv, exit=False, plugins=plugins)
+
         return t.result
+
 test = NoseWrapper().test
