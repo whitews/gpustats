@@ -1,20 +1,13 @@
 import numpy as np
 
-import gpustats.kernels as kernels
 import gpustats.codegen as codegen
 import gpustats.util as util
-import pycuda.driver as drv
 from pycuda.gpuarray import GPUArray, to_gpu
 from pycuda.gpuarray import empty as gpu_empty
-from pycuda.curandom import rand as curand
-
-# reload(kernels)
-# reload(codegen)
 
 cu_module = codegen.get_full_cuda_module()
 
-def sample_discrete(densities, logged=False,
-                        return_gpuarray=False):
+def sample_discrete(densities, logged=False, return_gpuarray=False):
 
     """
     Takes a categorical sample from the unnormalized univariate
@@ -35,6 +28,7 @@ def sample_discrete(densities, logged=False,
     from gpustats.util import info
 
     n, k = densities.shape
+
     # prep data
     if isinstance(densities, GPUArray):
         if densities.flags.f_contiguous:
@@ -51,20 +45,20 @@ def sample_discrete(densities, logged=False,
     # setup GPU data
     gpu_random = to_gpu(np.asarray(np.random.rand(n), dtype=np.float32))
     gpu_dest = gpu_empty(n, dtype=np.int32)
-    dims = np.array([n,k,logged],dtype=np.int32)
+    dims = np.array([n, k, logged], dtype=np.int32)
 
-    if info.max_block_threads<1024:
+    if info.max_block_threads < 1024:
         x_block_dim = 16
     else:
         x_block_dim = 32
 
     y_block_dim = 16
+
     # setup GPU call
     block_design = (x_block_dim, y_block_dim, 1)
     grid_design = (int(n/y_block_dim) + 1, 1)
 
-    shared_mem = 4 * ( (x_block_dim+1)*y_block_dim +  
-                     2 * y_block_dim )  
+    shared_mem = 4 * ((x_block_dim+1) * y_block_dim + 2 * y_block_dim)
 
     cu_func(gpu_densities, gpu_random, gpu_dest, 
             dims[0], dims[1], dims[2], 
@@ -80,25 +74,23 @@ def sample_discrete(densities, logged=False,
 
 def _tune_sfm(n, stride, func_regs):
     """
-    Outputs the 'opimal' block and grid configuration
+    Outputs the 'optimal' block and grid configuration
     for the sample discrete kernel.
     """
     from gpustats.util import info
 
-    #info = DeviceInfo()
     comp_cap = info.compute_cap
     max_smem = info.shared_mem * 0.8
     max_threads = int(info.max_block_threads * 0.5)
     max_regs = 0.9 * info.max_registers
 
-    # We want smallest dim possible in x dimsension while
+    # We want smallest dim possible in x dimension while
     # still reading mem correctly
 
     if comp_cap[0] == 1:
         xdim = 16
     else:
         xdim = 32
-
 
     def sfm_config_ok(xdim, ydim, stride, func_regs, max_regs, max_smem, max_threads):
         ok = 4*(xdim*stride + 1*xdim) < max_smem and func_regs*ydim*xdim < max_regs
@@ -110,19 +102,6 @@ def _tune_sfm(n, stride, func_regs):
 
     ydim -= 1
 
-    nblocks = int(n/xdim) + 1
+    n_blocks = int(n/xdim) + 1
 
-    return (nblocks,1), (xdim,ydim,1)
-
-if __name__ == '__main__':
-
-    n = 100
-    k = 5
-    dens = np.log(np.abs(np.random.randn(k))) - 200
-    densities = [dens.copy() for _ in range(n)]
-    dens = np.exp(dens + 200)
-    densities = np.asarray(densities)
-
-    labels = sample_discrete(densities, logged=True)
-    mu = np.dot(dens / dens.sum(), np.arange(k))
-    print mu, labels.mean()
+    return (n_blocks, 1), (xdim, ydim, 1)
