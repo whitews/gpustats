@@ -93,7 +93,7 @@ def _multivariate_pdf_call(cu_func, data, packed_params, get, order,
         if order=='F' or nparams==1:
             return gpu_dest
         else:
-            res = gpu_transpose(util.GPUarray_reshape(gpu_dest, (nparams, ndata), "C"))
+            res = gpu_transpose(util.gpu_array_reshape(gpu_dest, (nparams, ndata), "C"))
             gpu_dest.gpudata.free()
             return res
             #return gpu_transpose(gpu_dest.reshape(nparams, ndata, 'C'))
@@ -255,18 +255,3 @@ def normpdf_multi(x, means, std, logged=True, get=True):
         x = util.prep_ndarray(x)
 
     return _univariate_pdf_call(cu_func, x, packed_params, get)
-
-if __name__ == '__main__':
-    import gpustats.compat as compat
-
-    n = 1e5
-    k = 8
-
-    np.random.seed(1)
-    data = randn(n, k).astype(np.float32)
-    mean = randn(k).astype(np.float32)
-    cov = util.random_cov(k).astype(np.float32)
-
-    result = mvnpdf_multi(data, [mean, mean], [cov, cov])
-    # pyresult = compat.python_mvnpdf(data, [mean], [cov]).squeeze()
-    # print result - pyresult
