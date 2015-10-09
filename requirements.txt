@@ -1,2 +1,4 @@
 numpy
+scipy
 pycuda >= 0.94rc
+pymc
