@@ -1,6 +1,4 @@
-from gpustats.codegen import (MVDensityKernel, DensityKernel, Exp,
-                              CUFile)
-import gpustats.codegen as cg
+from gpustats.codegen import MVDensityKernel, Exp, CUFile
 
 # TODO: check for name conflicts!
 
@@ -26,22 +24,7 @@ __device__ float %(name)s(float* data, float* params, int dim) {
   return log(mult) - 0.5f * (discrim + logdet + LOG_2_PI * dim);
 }
 """
+
 log_pdf_mvnormal = MVDensityKernel('log_pdf_mvnormal', _log_pdf_mvnormal)
 pdf_mvnormal = Exp('pdf_mvnormal', log_pdf_mvnormal)
-
-
-_log_pdf_normal = """
-__device__ float %(name)s(float* x, float* params) {
-  // mean stored in params[0]
-  float std = params[1];
-
-  // standardize
-  float xstd = (*x - params[0]) / std;
-  return - (xstd * xstd) / 2 - 0.5f * LOG_2_PI - log(std);
-}
-"""
-log_pdf_normal = DensityKernel('log_pdf_normal', _log_pdf_normal)
-pdf_normal = Exp('pdf_normal', log_pdf_normal)
-
-sample_discrete = CUFile('sample_discrete',
-                             'sampleFromMeasureMedium.cu')
+sample_discrete = CUFile('sample_discrete', 'sampleFromMeasureMedium.cu')
