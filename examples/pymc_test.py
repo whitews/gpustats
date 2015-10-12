@@ -1,29 +1,23 @@
-# pylint: disable=E1101
-
 import pymc as pm
-import pymc.distributions as dist
 import numpy as np
-from numpy.linalg import inv, cholesky as chol
-import numpy.linalg as L
+from numpy.linalg import inv
 import numpy.random as rand
-
 import matplotlib.pyplot as plt
 
-#-------------------------------------------------------------------------------
-# Generate MV normal mixture
+from pandas.util.testing import set_trace as st
+from gpustats import pdfs
 
+# Generate MV normal mixture
 gen_mean = {
     0 : [0, 5],
     1 : [-10, 0],
     2 : [-10, 10]
 }
-
 gen_sd = {
     0 : [0.5, 0.5],
     1 : [.5, 1],
     2 : [1, .25]
 }
-
 gen_corr = {
     0 : 0.5,
     1 : -0.5,
@@ -31,6 +25,7 @@ gen_corr = {
 }
 
 group_weights = [0.6, 0.3, 0.1]
+
 
 def generate_data(n=1e5, k=2, ncomps=3, seed=1):
     rand.seed(seed)
@@ -56,11 +51,12 @@ def generate_data(n=1e5, k=2, ncomps=3, seed=1):
     return (np.concatenate(labels_concat),
             np.concatenate(data_concat, axis=0))
 
-N = int(1e5) # n data points per component
-K = 2 # ndim
-ncomps = 3 # n mixture components
+N = int(1e5)  # n data points per component
+K = 2         # n dim
+ncomps = 3    # n mixture components
 
 true_labels, data = generate_data(n=N, k=K, ncomps=ncomps)
+
 
 def plot_2d_mixture(data, labels):
     plt.figure(figsize=(10, 10))
@@ -80,7 +76,7 @@ def plot_thetas(sampler):
     for i in range(3):
         plot_theta(i)
 
-#-------------------------------------------------------------------------------
+
 # set up PyMC model
 
 # priors, fairly vague
@@ -88,7 +84,7 @@ prior_mean = data.mean(0)
 sigma0 = np.diag([1., 1.])
 prior_cov = np.cov(data.T)
 
-# shared hyperparameter?
+# shared hyper-parameter?
 # theta_tau = pm.Wishart('theta_tau', n=4, Tau=L.inv(sigma0))
 
 # df = pm.DiscreteUniform('df', 3, 50)
@@ -96,7 +92,7 @@ prior_cov = np.cov(data.T)
 thetas = []
 taus = []
 for j in range(ncomps):
-    # need a hyperparameter for degrees of freedom?
+    # need a hyper-parameter for degrees of freedom?
     tau = pm.Wishart('C_%d' % j, n=3, Tau=inv(prior_cov))
     theta = pm.MvNormal('theta_%d' % j, mu=prior_mean, tau=inv(2 * prior_cov))
 
@@ -107,9 +103,6 @@ alpha0 = np.ones(3.) / 3
 weights = pm.Dirichlet('weights', theta=alpha0)
 # labels = pm.Categorical('labels', p=weights, size=len(data))
 
-from pandas.util.testing import set_trace as st
-import pdfs
-import util
 
 def mixture_loglike(data, thetas, covs, labels):
 
@@ -122,14 +115,6 @@ def mixture_loglike(data, thetas, covs, labels):
 
     return loglike
 
-    if np.isnan(likes).any():
-        loglike = 0.
-        for j, (theta, cov) in enumerate(zip(thetas, covs)):
-            this_data = data[labels == j]
-            ch = chol(cov)
-            loglike += pm.mv_normal_chol_like(this_data, theta, ch)
-
-        return loglike
 
 def mixture_loglike2(data, thetas, taus, weights):
 
@@ -148,21 +133,15 @@ def mixture_loglike2(data, thetas, taus, weights):
 
     return loglike
 
-    if np.isnan(likes).any():
-        loglike = 0.
-        for j, (theta, cov) in enumerate(zip(thetas, covs)):
-            this_data = data[labels == j]
-            loglike += pm.mv_normal_chol_like(this_data, theta, ch)
-
-        return loglike
 
 @pm.deterministic
 def adj_weights(weights=weights):
     return np.sort(np.r_[weights, 1 - weights.sum()])
 
-@pm.stochastic(observed=True)
-def mixture(value=data, thetas=thetas, taus=taus, weights=adj_weights):
-    return mixture_loglike2(value, thetas, taus, weights)
+
+# @pm.stochastic(observed=True)
+# def mixture(value=data, thetas=thetas, taus=taus, weights=adj_weights):
+#     return mixture_loglike2(value, thetas, taus, weights)
 
 sampler = pm.MCMC(locals())
 

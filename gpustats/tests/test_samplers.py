@@ -1,18 +1,11 @@
-import nose
-import sys
 import unittest
 
 from numpy.random import rand
-from numpy.linalg import inv, cholesky as chol
-from numpy.testing import assert_almost_equal, assert_equal
+from numpy.testing import assert_almost_equal
 import numpy as np
 
-import scipy.stats as sp_stats
+import gpustats.sampler as gpu_sampler
 
-import gpustats as gps
-import gpustats.sampler as gpusamp
-import gpustats.compat as compat
-import gpustats.util as util
 
 DECIMAL_6 = 6
 DECIMAL_5 = 5
@@ -23,28 +16,30 @@ DECIMAL_1 = 1
 
 np.set_printoptions(suppress=True)
 
+
 def _make_test_densities(n=10000, k=4):
     dens = rand(k)
     densities = [dens.copy() for _ in range(n)]
     return np.asarray(densities)
-    #return (densities.T - densities.sum(1)).T
+
 
 def _compare_discrete(n, k):
     densities = _make_test_densities(n, k)
-    dens = densities[0,:].copy() / densities[0,:].sum()
+    dens = densities[0, :].copy() / densities[0, :].sum()
     expected_mu = np.dot(np.arange(k), dens)
 
-    labels = gpusamp.sample_discrete(densities, logged=False)
+    labels = gpu_sampler.sample_discrete(densities, logged=False)
     est_mu = labels.mean()
     return est_mu, expected_mu
 
+
 def _compare_logged(n, k):
     densities = np.log(_make_test_densities(n, k))
-    dens = np.exp((densities[0,:] - densities[0,:].max()))
+    dens = np.exp((densities[0, :] - densities[0, :].max()))
     dens = dens / dens.sum()
     expected_mu = np.dot(np.arange(k), dens)
 
-    labels = gpusamp.sample_discrete(densities, logged=True)
+    labels = gpu_sampler.sample_discrete(densities, logged=True)
     est_mu = labels.mean()
     return est_mu, expected_mu
 
@@ -78,6 +73,3 @@ if __name__ == '__main__':
     a, b = _compare_logged(1000000, 35)
     print a
     print b
-
-    
-    

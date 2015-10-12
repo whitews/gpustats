@@ -7,9 +7,9 @@ import numpy as np
 import scipy.stats as sp_stats
 from scipy import linalg
 from pymc.distributions import rwishart
+from pymc import mv_normal_cov_like as pdf_func
 
 import gpustats as gps
-import gpustats.compat as compat
 
 DECIMAL_6 = 6
 DECIMAL_5 = 5
@@ -22,6 +22,17 @@ np.set_printoptions(suppress=True)
 
 def random_cov(dim):
     return linalg.inv(rwishart(dim, np.eye(dim)))
+
+
+def python_mvnpdf(data, means, covs):
+
+    results = []
+    for i, datum in enumerate(data):
+        for j, cov in enumerate(covs):
+            mean = means[j]
+            results.append(pdf_func(datum, mean, cov))
+
+    return np.array(results).reshape((len(data), len(covs))).squeeze()
 
 
 def _make_test_case(n=1000, k=4, p=1):
@@ -37,7 +48,7 @@ def _compare_multi(n, k, p):
     data, means, covs = _make_test_case(n, k, p)
 
     # cpu in PyMC
-    py_result = compat.python_mvnpdf(data, means, covs)
+    py_result = python_mvnpdf(data, means, covs)
 
     # gpu
     result = gps.mvnpdf_multi(data, means, covs)
@@ -52,7 +63,7 @@ def _compare_single(n, k):
     cov = covs[0]
 
     # cpu in PyMC
-    py_result = compat.python_mvnpdf(data, [mean], [cov]).squeeze()
+    py_result = python_mvnpdf(data, [mean], [cov]).squeeze()
     # gpu
 
     result = gps.mvnpdf(data, mean, cov)
