@@ -239,10 +239,9 @@ def _get_transpose_kernel():
     else:
         t_block_size = 16
 
-    import os.path as pth
-    mod = SourceModule( 
+    mod = SourceModule(
         open(
-            pth.join(get_cufiles_path(), "transpose.cu")
+            os.path.join(get_cufiles_path(), "transpose.cu")
         ).read() % {"block_size": t_block_size}
     )
 

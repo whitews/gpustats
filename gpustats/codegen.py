@@ -166,9 +166,8 @@ class Transform(Kernel):
     def is_multivariate(self):
         return isinstance(self.kernel, MVDensityKernel)
 
+
 # flop the right name?
-
-
 class Flop(Transform):
     op = None
 
