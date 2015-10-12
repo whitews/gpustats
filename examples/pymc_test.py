@@ -9,19 +9,19 @@ from gpustats import pdfs
 
 # Generate MV normal mixture
 gen_mean = {
-    0 : [0, 5],
-    1 : [-10, 0],
-    2 : [-10, 10]
+    0: [0, 5],
+    1: [-10, 0],
+    2: [-10, 10]
 }
 gen_sd = {
-    0 : [0.5, 0.5],
-    1 : [.5, 1],
-    2 : [1, .25]
+    0: [0.5, 0.5],
+    1: [.5, 1],
+    2: [1, .25]
 }
 gen_corr = {
-    0 : 0.5,
-    1 : -0.5,
-    2 : 0
+    0: 0.5,
+    1: -0.5,
+    2: 0
 }
 
 group_weights = [0.6, 0.3, 0.1]
@@ -84,11 +84,6 @@ prior_mean = data.mean(0)
 sigma0 = np.diag([1., 1.])
 prior_cov = np.cov(data.T)
 
-# shared hyper-parameter?
-# theta_tau = pm.Wishart('theta_tau', n=4, Tau=L.inv(sigma0))
-
-# df = pm.DiscreteUniform('df', 3, 50)
-
 thetas = []
 taus = []
 for j in range(ncomps):
@@ -101,47 +96,11 @@ for j in range(ncomps):
 
 alpha0 = np.ones(3.) / 3
 weights = pm.Dirichlet('weights', theta=alpha0)
-# labels = pm.Categorical('labels', p=weights, size=len(data))
-
-
-def mixture_loglike(data, thetas, covs, labels):
-
-    n = len(data)
-    likes = pdfs.mvnpdf(data, thetas, covs)
-    loglike = likes.ravel('F').take(labels * n + np.arange(n)).sum()
-
-    if np.isnan(loglike):
-        return -1e300
-
-    return loglike
-
-
-def mixture_loglike2(data, thetas, taus, weights):
-
-    n = len(data)
-
-    covs = [inv(tau) for tau in taus]
-
-    likes = pdfs.mvnpdf(data, thetas, covs)
-    loglike = (likes * weights).sum()
-
-    # loglike = likes.ravel('F').take(labels * n + np.arange(n)).sum()
-
-    if np.isnan(loglike):
-        st()
-        return -1e300
-
-    return loglike
 
 
 @pm.deterministic
 def adj_weights(weights=weights):
     return np.sort(np.r_[weights, 1 - weights.sum()])
-
-
-# @pm.stochastic(observed=True)
-# def mixture(value=data, thetas=thetas, taus=taus, weights=adj_weights):
-#     return mixture_loglike2(value, thetas, taus, weights)
 
 sampler = pm.MCMC(locals())
 
