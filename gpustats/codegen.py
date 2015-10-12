@@ -1,15 +1,12 @@
 import pycuda.driver as drv
-import pycuda.tools
-#import pycuda.autoinit
 drv.init()
 if drv.Context.get_current() is None:
     import pycuda.autoinit
 
-import numpy
-import numpy.linalg as la
 import os
 from pycuda.compiler import SourceModule
 from gpustats.util import get_cufiles_path
+
 
 class CUDAModule(object):
     """
@@ -25,15 +22,15 @@ class CUDAModule(object):
 
         self.all_code = self._get_full_source()
         try:
-            #self.pycuda_module = SourceModule(self.all_code)
-            # dictionary mapping contexts to their respective loaded code modules
-            self.pycuda_modules = { drv.Context.get_current() : SourceModule(self.all_code) }
+            # dict mapping contexts to their respective loaded code modules
+            self.pycuda_modules = {
+                drv.Context.get_current(): SourceModule(self.all_code)
+            }
         except Exception:
             f = open('foo.cu', 'w')
             print >> f, self.all_code
             f.close()
             raise
-        #self.curDevice = drv.Context.get_device()
 
     def _get_full_source(self):
         formatted_kernels = [kern.get_code()
@@ -50,25 +47,24 @@ class CUDAModule(object):
             self.pycuda_modules[context] = SourceModule(self.all_code)
             mod = self.pycuda_modules[context]
         return mod.get_function('k_%s' % name)
-        #curDevice = drv.Context.get_device()
-        #if self.curDevice != curDevice:
-        #    self.pycuda_module = SourceModule(self.all_code)
-        #    self.curDevice = curDevice
-        #return self.pycuda_module.get_function('k_%s' % name)
+
 
 def _get_support_code():
     path = os.path.join(get_cufiles_path(), 'support.cu')
     return open(path).read()
+
 
 def _get_mvcaller_code():
     # for multivariate pdfs
     path = os.path.join(get_cufiles_path(), 'mvcaller.cu')
     return open(path).read()
 
+
 def _get_univcaller_code():
     # For univariate pdfs
     path = os.path.join(get_cufiles_path(), 'univcaller.cu')
     return open(path).read()
+
 
 class Kernel(object):
 
@@ -96,6 +92,7 @@ class Kernel(object):
 
         return name
 
+
 class CUFile(Kernel):
     """
     Expose kernel contained in .cu file in the cufiles directory to code
@@ -103,14 +100,17 @@ class CUFile(Kernel):
     the name of the generated kernel
     """
     def __init__(self, name, filepath):
-        self.full_path = os.path.join(get_cufiles_path(),
-                                      filepath)
+        self.full_path = os.path.join(
+            get_cufiles_path(),
+            filepath
+        )
 
         Kernel.__init__(self, name)
 
     def get_code(self):
         code = open(self.full_path).read()
-        return code % {'name' : self.name}
+        return code % {'name': self.name}
+
 
 class SamplerKernel(Kernel):
     """
@@ -124,7 +124,8 @@ class SamplerKernel(Kernel):
         return self.logic_code
 
     def get_caller(self, name=None):
-        return self._caller % {'name' : self.get_name(name)}
+        return self._caller % {'name': self.get_name(name)}
+
 
 class DensityKernel(Kernel):
     """
@@ -132,6 +133,7 @@ class DensityKernel(Kernel):
     """
 
     _caller = _get_univcaller_code()
+
     def __init__(self, name, logic_code):
 
         self.logic_code = logic_code
@@ -139,16 +141,18 @@ class DensityKernel(Kernel):
         Kernel.__init__(self, name)
 
     def get_logic(self, name=None):
-        return self.logic_code % {'name' : self.get_name(name)}
+        return self.logic_code % {'name': self.get_name(name)}
 
     def get_caller(self, name=None):
-        return self._caller % {'name' : self.get_name(name)}
+        return self._caller % {'name': self.get_name(name)}
+
 
 class MVDensityKernel(DensityKernel):
     """
 
     """
     _caller = _get_mvcaller_code()
+
 
 class Transform(Kernel):
     """
@@ -164,6 +168,7 @@ class Transform(Kernel):
 
 # flop the right name?
 
+
 class Flop(Transform):
     op = None
 
@@ -178,9 +183,11 @@ class Flop(Transform):
         else:
             stub_caller = _univ_stub_caller
 
-        transform_logic = stub_caller % {'name' : name,
-                                         'actual_kernel' : actual_name,
-                                         'op' : self.op}
+        transform_logic = stub_caller % {
+            'name': name,
+            'actual_kernel': actual_name,
+            'op': self.op
+        }
 
         return '\n'.join((kernel_logic, transform_logic))
 
@@ -199,16 +206,20 @@ __device__ float %(name)s(float* x, float* params, int dim) {
 }
 """
 
+
 class Exp(Flop):
     op = 'expf'
 
+
 class Log(Flop):
     op = 'logf'
+
 
 class Sqrt(Flop):
     op = 'sqrtf'
 
 _cu_module = None
+
 
 def get_full_cuda_module():
     import gpustats.kernels as kernels
@@ -217,9 +228,11 @@ def get_full_cuda_module():
     if _cu_module is None:
         objects = kernels.__dict__
 
-        all_kernels = dict((k, v)
-                           for k, v in kernels.__dict__.iteritems()
-                           if isinstance(v, Kernel))
+        all_kernels = dict(
+            (k, v)
+            for k, v in kernels.__dict__.iteritems()
+            if isinstance(v, Kernel)
+        )
         _cu_module = CUDAModule(all_kernels)
 
     return _cu_module
