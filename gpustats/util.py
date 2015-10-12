@@ -4,13 +4,12 @@ import numpy as np
 import pycuda.driver as drv
 import pycuda.gpuarray as gpuarray
 from pycuda.tools import context_dependent_memoize
+from pycuda.compiler import SourceModule
 
 drv.init()
 
 if drv.Context.get_current() is None:
     import pycuda.autoinit
-
-from pycuda.compiler import SourceModule
 
 
 def threadSafeInit(device=0):
@@ -104,46 +103,6 @@ class DeviceInfo(object):
 info = DeviceInfo()
 
 HALF_WARP = 16
-
-
-def unvech(v):
-    # quadratic formula, correct fp error
-    rows = .5 * (-1 + np.sqrt(1 + 8 * len(v)))
-    rows = int(np.round(rows))
-
-    result = np.zeros((rows, rows))
-    result[np.triu_indices(rows)] = v
-    result = result + result.T
-
-    # divide diagonal elements by 2
-    result[np.diag_indices(rows)] /= 2
-
-    return result
-
-
-def pad_data_mult16(data, fill=0):
-    """
-    Pad data to be a multiple of 16 for discrete sampler.
-    """
-
-    if type(data) == gpuarray:
-        data = data.get()
-
-    n, k = data.shape
-
-    km = int(k/16) + 1
-
-    new_k = km*16
-    if new_k != k:
-        padded_data = np.zeros((n, new_k), dtype=np.float32)
-        if fill != 0:
-            padded_data += fill
-
-        padded_data[:, :k] = data
-
-        return padded_data
-    else:
-        return prep_ndarray(data)
 
 
 def pad_data(data):

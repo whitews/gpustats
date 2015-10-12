@@ -7,6 +7,7 @@ from pycuda.gpuarray import empty as gpu_empty
 
 cu_module = codegen.get_full_cuda_module()
 
+
 def sample_discrete(densities, logged=False, return_gpuarray=False):
 
     """
@@ -71,37 +72,3 @@ def sample_discrete(densities, logged=False, return_gpuarray=False):
         res = gpu_dest.get()
         gpu_dest.gpudata.free()
         return res
-
-def _tune_sfm(n, stride, func_regs):
-    """
-    Outputs the 'optimal' block and grid configuration
-    for the sample discrete kernel.
-    """
-    from gpustats.util import info
-
-    comp_cap = info.compute_cap
-    max_smem = info.shared_mem * 0.8
-    max_threads = int(info.max_block_threads * 0.5)
-    max_regs = 0.9 * info.max_registers
-
-    # We want smallest dim possible in x dimension while
-    # still reading mem correctly
-
-    if comp_cap[0] == 1:
-        xdim = 16
-    else:
-        xdim = 32
-
-    def sfm_config_ok(xdim, ydim, stride, func_regs, max_regs, max_smem, max_threads):
-        ok = 4*(xdim*stride + 1*xdim) < max_smem and func_regs*ydim*xdim < max_regs
-        return ok and xdim*ydim <= max_threads
-
-    ydim = 2
-    while sfm_config_ok(xdim, ydim, stride, func_regs, max_regs, max_smem, max_threads):
-        ydim += 1
-
-    ydim -= 1
-
-    n_blocks = int(n/xdim) + 1
-
-    return (n_blocks, 1), (xdim, ydim, 1)
