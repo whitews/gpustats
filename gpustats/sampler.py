@@ -1,6 +1,6 @@
 import numpy as np
 
-import gpustats.codegen as codegen
+from gpustats import codegen
 import gpustats.util as util
 from pycuda.gpuarray import GPUArray, to_gpu
 from pycuda.gpuarray import empty as gpu_empty
@@ -9,9 +9,8 @@ cu_module = codegen.get_full_cuda_module()
 
 
 def sample_discrete(densities, logged=False, return_gpuarray=False):
-
     """
-    Takes a categorical sample from the unnormalized univariate
+    Takes a categorical sample from the un-normalized univariate
     densities defined in the rows of 'densities'
 
     Parameters
