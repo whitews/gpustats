@@ -166,7 +166,7 @@ def tune_blocksize(data, params, func_regs):
     data_per = data_per0
 
     def _can_fit(data_per, params_per):
-        ok = compute_shmem(data, params, data_per, params_per) <= max_smem
+        ok = compute_shared_mem(data, params, data_per, params_per) <= max_smem
         ok = ok and data_per*params_per <= max_threads
         return ok and func_regs*data_per*params_per <= max_regs
 
@@ -201,7 +201,7 @@ def get_boxes(n, box_size):
     return int((n + box_size - 1) / box_size)
 
 
-def compute_shmem(data, params, data_per, params_per):
+def compute_shared_mem(data, params, data_per, params_per):
     result_space = data_per * params_per
 
     data_dim = 1 if len(data.shape) == 1 else data.shape[1]
